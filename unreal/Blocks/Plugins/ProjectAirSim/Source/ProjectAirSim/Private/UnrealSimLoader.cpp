@@ -14,6 +14,7 @@
 #include "UnrealLogger.h"
 #include "UnrealScene.h"
 #include "simserver.hpp"
+#include "Constant.h"
 
 #ifdef ENABLE_CESIUM
 #include "Cesium3DTileset.h"

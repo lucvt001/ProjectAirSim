@@ -11,6 +11,7 @@
 #include "UnrealLogger.h"
 #include "core_sim/link/geometry/unreal_mesh.hpp"
 #include "core_sim/math_utils.hpp"
+#include "UnrealHelpers.h"
 
 namespace projectairsim = microsoft::projectairsim;
 

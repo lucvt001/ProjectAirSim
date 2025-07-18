@@ -1,6 +1,7 @@
 // Copyright (C) Microsoft Corporation.  All rights reserved.
 
 #include "LightActorBase.h"
+#include "Components/LocalLightComponent.h"
 
 // Returns true if able to set intensity on all light components
 // False if any item is nullptr
@@ -38,7 +39,7 @@ bool ALightActorBase::SetRadius(float NewRadius) {
   for(int i = 0; i < lightComponents.Num(); i++)
   {
     ULocalLightComponent* localLightComponent =
-        dynamic_cast<ULocalLightComponent*>(lightComponents[i]);
+        Cast<ULocalLightComponent>(lightComponents[i]);
 
     if (localLightComponent != nullptr) {
       localLightComponent->SetAttenuationRadius(NewRadius);
