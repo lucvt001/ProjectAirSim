@@ -229,7 +229,6 @@ FString AUnrealSimLoader::ResolveTilesDirectory(
 void AUnrealSimLoader::ConfigureCesiumTileset(
     ACesium3DTileset* CesiumTile, projectairsim::GeoPoint& HomeGeoPoint,
     FString TilesetDir) {
-  CesiumTile->Url = FString("file:///" + TilesetDir);
 
   // Disable culling and lower LODs since sensors might be independent from
   // frustum.
@@ -237,20 +236,63 @@ void AUnrealSimLoader::ConfigureCesiumTileset(
   CesiumTile->EnforceCulledScreenSpaceError = true;
   CesiumTile->CulledScreenSpaceError = CesiumTile->MaximumScreenSpaceError;
 
-  auto CesiumRot = FRotator(
-      0, 90, 0);  // to match cesium's ENU RHS coords with our NEU LHS coords.
-  auto CesiumLoc =
-      FVector(0.f, 0.f, 8844.f);  // TODO: can we get rid of this magic num and
-                                  // smartly pick a height for the tileset?
-  UGameplayStatics::FinishSpawningActor(CesiumTile,
-                                        FTransform(CesiumRot, CesiumLoc));
+  // Get the georeference - note it returns a TSoftObjectPtr, so we need to use Get()
+  ACesiumGeoreference* Georeference = CesiumTile->GetGeoreference().Get();
 
-  CesiumTile->Georeference->OriginLatitude = HomeGeoPoint.latitude;
-  CesiumTile->Georeference->OriginLongitude = HomeGeoPoint.longitude;
-  CesiumTile->Georeference->OriginHeight = HomeGeoPoint.altitude;
-  CesiumTile->Georeference->KeepWorldOriginNearCamera =
-      false;  // TODO: to maintain precision we should look into making this
-              // work.
+  // If no georeference exists, try to create one or find one in the world
+  if (!Georeference)
+  {
+    UnrealLogger::Log(projectairsim::LogLevel::kTrace,
+                      TEXT("[AUnrealSimLoader] No Georeference found on tileset, searching for one in world..."));
+    
+    // Try to find an existing georeference in the world
+    TArray<AActor*> FoundActors;
+    UGameplayStatics::GetAllActorsOfClass(UnrealWorld, ACesiumGeoreference::StaticClass(), FoundActors);
+    
+    if (FoundActors.Num() > 0)
+    {
+      Georeference = Cast<ACesiumGeoreference>(FoundActors[0]);
+      UnrealLogger::Log(projectairsim::LogLevel::kTrace,
+                        TEXT("[AUnrealSimLoader] Found existing Georeference in world"));
+    }
+    else
+    {
+      // Create a new georeference if none exists
+      UnrealLogger::Log(projectairsim::LogLevel::kTrace,
+                        TEXT("[AUnrealSimLoader] Creating new Georeference actor"));
+      
+      FActorSpawnParameters SpawnParams;
+      SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+      
+      Georeference = UnrealWorld->SpawnActor<ACesiumGeoreference>(
+        ACesiumGeoreference::StaticClass(),
+        FVector::ZeroVector,
+        FRotator::ZeroRotator,
+        SpawnParams);
+    }
+    
+    // Set the georeference on the tileset
+    if (Georeference)
+    {
+      CesiumTile->SetGeoreference(Georeference);
+    }
+  }
+
+  if (Georeference)
+  {
+    // Set up georeference using Cesium API
+    FVector OriginLLH(HomeGeoPoint.longitude, HomeGeoPoint.latitude, HomeGeoPoint.altitude);
+    Georeference->SetOriginLongitudeLatitudeHeight(OriginLLH);
+    
+    UnrealLogger::Log(projectairsim::LogLevel::kTrace,
+                      TEXT("[AUnrealSimLoader] Configured Cesium georeference at Lon: %f, Lat: %f, Alt: %f"),
+                      HomeGeoPoint.longitude, HomeGeoPoint.latitude, HomeGeoPoint.altitude);
+  }
+  else
+  {
+    UnrealLogger::Log(projectairsim::LogLevel::kError,
+                      TEXT("[AUnrealSimLoader] Failed to get or create Georeference for Cesium tileset!"));
+  }
 }
 #endif
 
@@ -369,11 +411,31 @@ void AUnrealSimLoader::LoadUnrealScene() {
 
 #ifdef ENABLE_CESIUM
               auto HomeGeoPoint = Scene.GetHomeGeoPoint().geo_point;
-              auto CesiumTile =
-                  UnrealWorld->SpawnActorDeferred<ACesium3DTileset>(
-                      ACesium3DTileset::StaticClass(), FTransform(), nullptr,
-                      nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
-              ConfigureCesiumTileset(CesiumTile, HomeGeoPoint, TilesDir);
+
+              // Find existing Cesium tileset in the world instead of spawning a new one
+              TArray<AActor*> FoundActors;
+              UGameplayStatics::GetAllActorsOfClass(UnrealWorld, ACesium3DTileset::StaticClass(), FoundActors);
+
+              ACesium3DTileset* CesiumTile = nullptr;
+              if (FoundActors.Num() > 0)
+              {
+                CesiumTile = Cast<ACesium3DTileset>(FoundActors[0]);
+                UnrealLogger::Log(projectairsim::LogLevel::kTrace,
+                                  TEXT("[AUnrealSimLoader] Found existing Cesium3DTileset in world"));
+              }
+              else
+              {
+                // auto CesiumTile = UrealWorld->SpawnActorDeferred<ACesium3DTileset>(
+                //   ACesium3DTileset::StaticClass(), FTransform(), nullptr,
+                //   nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+                UnrealLogger::Log(projectairsim::LogLevel::kWarning,
+                                  TEXT("[AUnrealSimLoader] No Cesium3DTileset found in world, created a new one"));
+              }
+
+              if (CesiumTile)
+              {
+                ConfigureCesiumTileset(CesiumTile, HomeGeoPoint, TilesDir);
+              }
               break;
 #else
               UnrealLogger::Log(
