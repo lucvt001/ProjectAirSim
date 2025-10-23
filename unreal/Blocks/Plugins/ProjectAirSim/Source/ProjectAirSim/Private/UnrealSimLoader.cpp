@@ -425,9 +425,9 @@ void AUnrealSimLoader::LoadUnrealScene() {
               }
               else
               {
-                // auto CesiumTile = UrealWorld->SpawnActorDeferred<ACesium3DTileset>(
-                //   ACesium3DTileset::StaticClass(), FTransform(), nullptr,
-                //   nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+                CesiumTile = UnrealWorld->SpawnActorDeferred<ACesium3DTileset>(
+                  ACesium3DTileset::StaticClass(), FTransform(), nullptr,
+                  nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
                 UnrealLogger::Log(projectairsim::LogLevel::kWarning,
                                   TEXT("[AUnrealSimLoader] No Cesium3DTileset found in world, created a new one"));
               }
