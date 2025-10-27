@@ -42,6 +42,9 @@ public class ProjectAirSim : ModuleRules
         // in a less manual fashion?
         if (Target.Platform == UnrealTargetPlatform.Win64)
         {
+            // Enable Cesium support on Windows - moved here to be before includes
+            PublicDefinitions.Add("ENABLE_CESIUM=1");
+
             List<string> liststrIncludes = new List<string> {
                     PluginDirectory + "/SimLibs/core_sim/include",
                     PluginDirectory + "/SimLibs/simserver/include",
@@ -106,6 +109,12 @@ public class ProjectAirSim : ModuleRules
                 // ... add other public dependencies that you statically link with here ...
             }
         );
+
+        // Add CesiumRuntime dependency on Windows for Cesium GIS support
+        if (Target.Platform == UnrealTargetPlatform.Win64)
+        {
+            PublicDependencyModuleNames.Add("CesiumRuntime");
+        }
 
         PrivateDependencyModuleNames.AddRange(
             new string[] {

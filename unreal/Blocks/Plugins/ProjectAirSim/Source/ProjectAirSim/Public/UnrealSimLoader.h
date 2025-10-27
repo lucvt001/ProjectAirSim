@@ -53,7 +53,7 @@ class PROJECTAIRSIM_API AUnrealSimLoader {
 
 #ifdef ENABLE_CESIUM
   void ConfigureCesiumTileset(ACesium3DTileset* CesiumTile,
-                              projectairsim::GeoPoint& HomeGeoPoint,
+                              microsoft::projectairsim::GeoPoint& HomeGeoPoint,
                               FString TilesetDir);
 #endif
 
